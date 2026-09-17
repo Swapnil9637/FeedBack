@@ -1,4 +1,4 @@
-process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://api.deployai.in/api/observability/traces';
+process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://deployraai.onrender.com/api/observability/traces';
 process.env.OTEL_SERVICE_NAME = 'FeedBack';
 const { initExpressObservability } = require('@swapnil454/tracepilot/express');
 initExpressObservability();
