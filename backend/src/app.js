@@ -1,8 +1,3 @@
-process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || `${process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "https://api.deployai.in"}/api/observability/traces`;
-process.env.OTEL_SERVICE_NAME = 'FeedBack';
-const { registerOTel } = require('@swapnil1454/tracepilot/node');
-registerOTel();
-
 const express = require('express');
 const sequelize = require('./config/database');
 const cors = require('cors');
