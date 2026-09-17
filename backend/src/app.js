@@ -1,3 +1,7 @@
+process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://api.deployai.in/api/observability/traces';
+process.env.OTEL_SERVICE_NAME = 'FeedBack';
+const { initExpressObservability } = require('@swapnil454/tracepilot/express');
+initExpressObservability();
 process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || `${process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "https://api.deployai.in"}/api/observability/traces`;
 process.env.OTEL_SERVICE_NAME = 'FeedBack';
 const { registerOTel } = require('@swapnil454/tracepilot/node');
