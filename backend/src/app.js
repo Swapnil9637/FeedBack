@@ -1,5 +1,3 @@
-const { registerOTel } = require('@swapnil454/tracepilot/node');
-registerOTel();
 const express = require('express');
 const sequelize = require('./config/database');
 const cors = require('cors');
