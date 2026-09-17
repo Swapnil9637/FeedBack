@@ -9,7 +9,7 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
       <TracePilotProvider 
-        token="YOUR_PROJECT_TRACKING_ID" 
+        token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9qZWN0SWQiOiI2YWFhZWI2MWI0NGMzZTUyZTlmYmE0NDMiLCJ0eXBlIjoiaW5nZXN0b3IiLCJpYXQiOjE3ODk1ODYyNzUsImV4cCI6MTc5NzM2MjI3NX0._qolfywX2LkGPzpOiMa9dcZCGLAAGgzCksrUcwobmyE" 
         serviceName="FeedBack-Frontend"
         ingestorUrl="https://deployraai.onrender.com/api/observability/traces/v1/traces"
         rumUrl="https://deployraai.onrender.com/api/observability/traces/v1/rum"
