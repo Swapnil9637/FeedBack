@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "react-router-dom": "^7.8.1"
+    "react-router-dom": "^7.8.1",
+    "@swapnil454/tracepilot": "^0.1.2"
   }
 }
