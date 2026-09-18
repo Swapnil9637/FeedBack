@@ -1,58 +1,76 @@
+// Start Continuous Profiling Setup
 const pprof = require('@datadog/pprof');
-const fetch = require('node-fetch'); // Ensure 'node-fetch' is installed (npm install node-fetch)
+const https = require('https');
+const { URL } = require('url'); 
 
-// --- Continuous Profiling Setup ---
-const PROFILE_UPLOAD_URL = 'https://deployraai-ingestor.yourdomain.com/v1/profiles';
+const PROFILING_ENDPOINT = 'https://deployraai-ingestor.yourdomain.com/v1/profiles';
 const PROJECT_ID = '6aaaeb61b44c3e52e9fba443';
+const SERVICE_NAME_FOR_PROFILE = 'FeedBack'; 
 const PROFILE_TYPE = 'cpu';
-const PROFILE_DURATION_MS = 5000; // Capture CPU profile for 5 seconds
-const UPLOAD_INTERVAL_MS = 60 * 1000; // Upload a new profile every 60 seconds
+const PROFILING_INTERVAL_MS = 60 * 1000; // 60 seconds
 
-async function collectAndUploadProfile() {
-    try {
-        console.log('Starting CPU profile collection...');
-        const profile = await pprof.profile({
-            durationMillis: PROFILE_DURATION_MS,
-            // Optionally, specify 'sourceMapper: true' if source maps are available
-            // and you want to resolve original source locations.
-            // However, this might add overhead; typically better for local debugging.
-            // For continuous profiling, raw profiles are often mapped on the ingestor side.
-        });
-        const pprofBuffer = pprof.encodeSync(profile);
+let profileCounter = 0; 
 
-        // OTEL_SERVICE_NAME is set below in the main app logic
-        const serviceName = process.env.OTEL_SERVICE_NAME || 'FeedBack'; // Fallback to 'FeedBack' if not yet set
+function sendProfileData(buffer) {
+  const url = new URL(PROFILING_ENDPOINT);
+  const options = {
+    hostname: url.hostname,
+    port: url.port || (url.protocol === 'https:' ? 443 : 80),
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'x-project-id': PROJECT_ID,
+      'x-service-name': SERVICE_NAME_FOR_PROFILE,
+      'x-profile-type': PROFILE_TYPE,
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': Buffer.byteLength(buffer),
+    },
+  };
 
-        console.log(`Uploading CPU profile for service: ${serviceName}...`);
-        const response = await fetch(PROFILE_UPLOAD_URL, {
-            method: 'POST',
-            headers: {
-                'x-project-id': PROJECT_ID,
-                'x-service-name': serviceName,
-                'x-profile-type': PROFILE_TYPE,
-                'Content-Type': 'application/octet-stream',
-            },
-            body: pprofBuffer,
-        });
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+    res.on('end', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+         console.log(`[Profiling] Profile ${profileCounter} sent successfully`);
+      } else {
+        console.error(`[Profiling] Failed to send profile ${profileCounter} (Status: ${res.statusCode}): ${data}`);
+      }
+    });
+  });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Failed to upload profile: ${response.status} ${response.statusText} - ${errorText}`);
-        } else {
-            console.log('CPU profile uploaded successfully!');
-        }
-    } catch (error) {
-        console.error('Error during profile collection or upload:', error);
-    }
+  req.on('error', (e) => {
+    console.error(`[Profiling] Problem with profile request ${profileCounter}: ${e.message}`);
+  });
+
+  req.write(buffer);
+  req.end();
 }
 
-// Schedule the continuous profiling task
-setInterval(collectAndUploadProfile, UPLOAD_INTERVAL_MS);
+function startContinuousProfiling() {
+  console.log('[Profiling] Initializing continuous CPU profiling...');
 
-// Ensure that the initial call happens after the application has had a chance to start up,
-// or if you want an immediate first profile, call it once here too.
-// For continuous profiling, setInterval is enough.
-// --- End Continuous Profiling Setup ---
+  pprof.start();
+  console.log('[Profiling] CPU profiler started.');
+
+  setInterval(async () => {
+    profileCounter++;
+    try {
+      const profile = pprof.stop();
+      const buffer = await pprof.encode(profile);
+      sendProfileData(buffer);
+      pprof.start();
+    } catch (error) {
+      console.error(`[Profiling] Error during profiling interval ${profileCounter}:`, error);
+      pprof.start();
+    }
+  }, PROFILING_INTERVAL_MS);
+}
+
+startContinuousProfiling();
+// End Continuous Profiling Setup
 
 process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://deployraai.onrender.com/api/observability/traces';
 process.env.OTEL_SERVICE_NAME = 'FeedBack';
