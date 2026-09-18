@@ -1,3 +1,99 @@
+// Start Continuous Profiling Setup
+const pprof = require('@datadog/pprof');
+const https = require('https');
+const { URL } = require('url'); // Node.js built-in URL class
+
+const PROFILING_ENDPOINT = 'https://deployraai-ingestor.yourdomain.com/v1/profiles';
+const PROJECT_ID = '6aaaeb61b44c3e52e9fba443';
+const SERVICE_NAME_FOR_PROFILE = 'FeedBack'; // As specified in the task for profiling headers
+const PROFILE_TYPE = 'cpu';
+const PROFILING_INTERVAL_MS = 60 * 1000; // 60 seconds
+
+let profileCounter = 0; // To track profiles sent
+
+function sendProfileData(buffer) {
+  const url = new URL(PROFILING_ENDPOINT);
+  const options = {
+    hostname: url.hostname,
+    port: url.port || (url.protocol === 'https:' ? 443 : 80),
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'x-project-id': PROJECT_ID,
+      'x-service-name': SERVICE_NAME_FOR_PROFILE,
+      'x-profile-type': PROFILE_TYPE,
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': Buffer.byteLength(buffer),
+    },
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+    res.on('end', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        // console.log(`[Profiling] Profile ${profileCounter} sent successfully (Status: ${res.statusCode})`);
+      } else {
+        console.error(`[Profiling] Failed to send profile ${profileCounter} (Status: ${res.statusCode}): ${data}`);
+      }
+    });
+  });
+
+  req.on('error', (e) => {
+    console.error(`[Profiling] Problem with profile request ${profileCounter}: ${e.message}`);
+  });
+
+  req.write(buffer);
+  req.end();
+}
+
+function startContinuousProfiling() {
+  console.log('[Profiling] Initializing continuous CPU profiling...');
+
+  // Start the very first profile
+  pprof.start();
+  console.log('[Profiling] CPU profiler started.');
+
+  setInterval(async () => {
+    profileCounter++;
+    try {
+      // Stop the current profile
+      const profile = pprof.stop();
+
+      // Encode the profile to pprof format
+      const buffer = await pprof.encode(profile);
+
+      // Send the profile data
+      sendProfileData(buffer);
+
+      // Start a new profile for the next interval
+      pprof.start();
+      // console.log(`[Profiling] New CPU profiling cycle started for interval ${profileCounter + 1}.`);
+
+    } catch (error) {
+      console.error(`[Profiling] Error during profiling interval ${profileCounter}:`, error);
+      // Attempt to restart profiling even if there was an error with encoding/sending
+      pprof.start();
+    }
+  }, PROFILING_INTERVAL_MS);
+
+  // Optional: Add a graceful shutdown hook to stop profiling on process termination
+  // process.on('beforeExit', () => {
+  //   try {
+  //     pprof.stop();
+  //     console.log('[Profiling] CPU profiler stopped gracefully.');
+  //   } catch (e) {
+  //     console.error('[Profiling] Error stopping profiler on exit:', e.message);
+  //   }
+  // });
+}
+
+// Execute the profiling setup function
+startContinuousProfiling();
+// End Continuous Profiling Setup
+
 process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://deployraai.onrender.com/api/observability/traces';
 process.env.OTEL_SERVICE_NAME = 'FeedBack';
 const { initExpressObservability } = require('@swapnil454/tracepilot/express');
