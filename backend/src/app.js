@@ -7,7 +7,7 @@ const PROFILING_ENDPOINT = 'https://deployraai-ingestor.yourdomain.com/v1/profil
 const PROJECT_ID = '6aaaeb61b44c3e52e9fba443';
 const SERVICE_NAME_FOR_PROFILE = 'FeedBack'; 
 const PROFILE_TYPE = 'cpu';
-const PROFILING_INTERVAL_MS = 60 * 1000; // 60 seconds
+const PROFILING_INTERVAL_MS = 60 * 1000; // Run every 60 seconds
 
 let profileCounter = 0; 
 
@@ -34,7 +34,7 @@ function sendProfileData(buffer) {
     });
     res.on('end', () => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
-         console.log(`[Profiling] Profile ${profileCounter} sent successfully`);
+         console.log(`[Profiling] Profile ${profileCounter} sent successfully!`);
       } else {
         console.error(`[Profiling] Failed to send profile ${profileCounter} (Status: ${res.statusCode}): ${data}`);
       }
@@ -52,19 +52,22 @@ function sendProfileData(buffer) {
 function startContinuousProfiling() {
   console.log('[Profiling] Initializing continuous CPU profiling...');
 
-  pprof.start();
-  console.log('[Profiling] CPU profiler started.');
-
+  // Run the profiling loop
   setInterval(async () => {
     profileCounter++;
     try {
-      const profile = pprof.stop();
+      console.log(`[Profiling] Capturing CPU profile ${profileCounter}...`);
+      
+      // Capture 10 seconds of CPU activity
+      const profile = await pprof.time.profile({ durationMillis: 10000 });
+      
+      // Encode to standard pprof format
       const buffer = await pprof.encode(profile);
+      
+      // Send to the ingestor
       sendProfileData(buffer);
-      pprof.start();
     } catch (error) {
       console.error(`[Profiling] Error during profiling interval ${profileCounter}:`, error);
-      pprof.start();
     }
   }, PROFILING_INTERVAL_MS);
 }
