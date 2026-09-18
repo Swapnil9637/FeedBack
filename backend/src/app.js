@@ -3,7 +3,7 @@ const pprof = require('@datadog/pprof');
 const https = require('https');
 const { URL } = require('url'); 
 
-const PROFILING_ENDPOINT = 'https://deployraai-ingestor.yourdomain.com/v1/profiles';
+const PROFILING_ENDPOINT = 'https://deployraai.onrender.com/api/observability/profiles/v1/profiles';
 const PROJECT_ID = '6aaaeb61b44c3e52e9fba443';
 const SERVICE_NAME_FOR_PROFILE = 'FeedBack'; 
 const PROFILE_TYPE = 'cpu';
