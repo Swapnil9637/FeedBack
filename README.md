@@ -161,3 +161,51 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 If you encounter any issues or have questions regarding the setup, please open an issue on the repository.
+
+
+The browser reproduction found the root cause: TracePilotProvider injects analytics code that patches history.replaceState, then repeatedly triggers itself. The console shows Maximum update depth exceeded and the stack ends in the analytics replaceState patch; this is why the URL changes while route content lags. I’m checking the provider’s supported options for a non-invasive fix before removing observability from the app.
+
+The script in `index.html` was an external analytics script:
+
+```html
+https://deployraai.onrender.com/analytics.js
+```
+
+Its actual effects were:
+
+1. It monkey-patched `history.pushState` / `history.replaceState`.
+2. React Router uses those same browser APIs for `<Link>` navigation.
+3. The analytics script triggered tracking while React Router was changing the route.
+4. This caused repeated history updates and React’s `Maximum update depth exceeded` error.
+5. The browser URL changed, but React Router’s rendered page and active navbar link became stale.
+6. It also generated CORS failures because requests included a `traceparent` header that the server did not allow.
+
+There was also a separate issue in `TracePilotProvider`: its default CORS array was recreated on every render, causing its own render loop. That is why removing only the analytics script was not enough.
+
+You can keep the script, but the remote `analytics.js` must be fixed to:
+
+- Guard against recursive `pushState`/`replaceState` calls.
+- Avoid replacing browser history unnecessarily.
+- Add `traceparent` to the server’s allowed CORS headers.
+- Track route changes without triggering another route change.
+
+Until that remote script is corrected, keeping it in `index.html` will continue to interfere with React Router.
+
+Yes. The application can feel heavy because multiple observability systems are running at the same time.
+
+Main causes:
+
+- `enableSessionReplay={true}` in `main.jsx:17` starts `rrweb`, which records DOM changes, clicks, typing events, scrolling, and form mutations.
+- TracePilot instruments every `fetch` and `XMLHttpRequest`, adding tracing headers and processing network activity.
+- The external `analytics.js` script also tracks page views and patches browser history. Running it together with TracePilot duplicates tracking.
+- The previous infinite render loop caused continuous React updates, which can make typing and clicking extremely slow.
+- Failed CORS requests may repeatedly attempt telemetry uploads.
+- In development, `StrictMode` can run certain effects twice, making telemetry overhead more noticeable.
+
+The biggest performance improvement is to disable session replay:
+
+```jsx
+enableSessionReplay={false}
+```
+
+You can still keep error and request tracing. For production, session replay should also be sampled or enabled only when debugging because recording every interaction is expensive, especially on forms. The external analytics script should remain removed until its history patch and CORS behavior are corrected.

@@ -39,7 +39,6 @@ const Login = () => {
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/dashboard');
-      window.location.href = '/dashboard';
     } catch (err) {
       setMessage(err.response?.data?.error || 'Login failed.');
       setLoading(false);

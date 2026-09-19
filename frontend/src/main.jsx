@@ -5,6 +5,8 @@ import App from './App.jsx'
 import { HelmetProvider } from 'react-helmet-async'
 import { TracePilotProvider } from '@swapnil454/tracepilot/react'
 
+const tracePilotAllowedCorsUrls = [/.*/]
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
@@ -14,6 +16,7 @@ createRoot(document.getElementById('root')).render(
         ingestorUrl="https://deployraai.onrender.com/api/observability/traces/v1/traces"
         rumUrl="https://deployraai.onrender.com/api/observability/traces/v1/rum"
         enableSessionReplay={true}
+        allowedCorsUrls={tracePilotAllowedCorsUrls}
       >
         <App />
       </TracePilotProvider>

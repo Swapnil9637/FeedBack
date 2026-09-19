@@ -16,7 +16,12 @@ initExpressObservability();
 // ==========================================
 // 2. Continuous Profiling (CPU & Memory)
 // ==========================================
-const pprof = require('@datadog/pprof');
+let pprof;
+try {
+  pprof = require('@datadog/pprof');
+} catch (error) {
+  console.warn(`[Profiling] Native profiler unavailable; profiling disabled: ${error.message}`);
+}
 const https = require('https');
 const { URL } = require('url'); 
 
@@ -26,7 +31,9 @@ const SERVICE_NAME_FOR_PROFILE = 'FeedBack';
 const PROFILING_INTERVAL_MS = 60 * 1000; // Run every 60 seconds
 
 let profileCounter = 0; 
-pprof.heap.start(512 * 1024, 64);
+if (pprof) {
+  pprof.heap.start(512 * 1024, 64);
+}
 
 function sendProfileData(buffer, profileType) {
   const url = new URL(PROFILING_ENDPOINT);
@@ -65,6 +72,8 @@ function sendProfileData(buffer, profileType) {
 }
 
 function startContinuousProfiling() {
+  if (!pprof) return;
+
   console.log('[Profiling] Initializing continuous CPU and Memory profiling...');
   const captureAndSend = async () => {
     profileCounter++;

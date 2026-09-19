@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import api from '../api/axios';
 import { motion } from 'framer-motion';
 import { Search, MapPin, Store as StoreIcon, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const StoreList = () => {
   const [stores, setStores] = useState([]);
@@ -206,12 +207,12 @@ const StoreList = () => {
                     </div>
                   </div>
 
-                  <a
-                    href={`/stores/${store._id}`}
+                  <Link
+                    to={`/stores/${store._id}`}
                     className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1.5 rounded-lg border border-amber-400/20 transition-colors"
                   >
                     View Details
-                  </a>
+                  </Link>
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-zinc-800">
