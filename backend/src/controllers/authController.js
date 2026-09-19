@@ -1,6 +1,7 @@
 const { User, OtpToken } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { track } = require('@swapnil454/tracepilot');
 
 const generateOTP = require('../utils/generateOTP');
 const sendOTP = require('../utils/sendOTP');
@@ -116,6 +117,9 @@ exports.verifyAndCreateUser = async (req, res) => {
     await user.save();
 
     await OtpToken.destroy({ where: { email } });
+     track('user_signup', {
+      role: user.role
+    });
 
     res.status(201).json({ message: 'Signup & verification complete.', userId: user._id });
   } catch (err) {
@@ -163,6 +167,9 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
+    track('user_login', {
+      role: user.role
+    });
 
     res.json({ token, user });
   } catch (err) {
