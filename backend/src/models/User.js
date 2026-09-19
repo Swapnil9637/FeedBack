@@ -8,9 +8,9 @@ const User = sequelize.define('User', {
     primaryKey: true
   },
   name: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.STRING(60),
     allowNull: false,
-    validate: { len: [6, 20] }
+    validate: { len: [20, 60] }
   },
   email: {
     type: DataTypes.STRING,

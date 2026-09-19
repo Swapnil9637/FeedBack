@@ -27,7 +27,7 @@ exports.signup = async (req, res) => {
   try {
     const { name, email, address, password, role } = req.body;
 
-    if (!name || name.length < 20 || name.length > 60)
+    if (!name || name.trim().length < 20 || name.trim().length > 60)
       return res.status(400).json({ error: 'Name must be 20-60 chars.' });
 
     if (!address || address.length > 400)
