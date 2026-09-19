@@ -1,17 +1,31 @@
-// Start Continuous Profiling Setup
+// ==========================================
+// 1. OTel Trace & Metrics Initialization
+// (Must be the very first thing to run!)
+// ==========================================
+process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://deployraai.onrender.com/api/observability/traces';
+process.env.OTEL_SERVICE_NAME = 'FeedBack';
+
+const { 
+  initExpressObservability, 
+  observabilityMiddleware, 
+  errorObservabilityMiddleware 
+} = require('@swapnil454/tracepilot/express');
+
+initExpressObservability();
+
+// ==========================================
+// 2. Continuous Profiling (CPU & Memory)
+// ==========================================
 const pprof = require('@datadog/pprof');
 const https = require('https');
 const { URL } = require('url'); 
 
-// Send to the Main Server Proxy, which will attach your auth tokens automatically
 const PROFILING_ENDPOINT = 'https://deployraai.onrender.com/api/observability/profiles/v1/profiles';
 const PROJECT_ID = '6aaaeb61b44c3e52e9fba443';
 const SERVICE_NAME_FOR_PROFILE = 'FeedBack'; 
 const PROFILING_INTERVAL_MS = 60 * 1000; // Run every 60 seconds
 
 let profileCounter = 0; 
-
-// 1. Enable heap profiler to track memory allocations
 pprof.heap.start(512 * 1024, 64);
 
 function sendProfileData(buffer, profileType) {
@@ -32,9 +46,7 @@ function sendProfileData(buffer, profileType) {
 
   const req = https.request(options, (res) => {
     let data = '';
-    res.on('data', (chunk) => {
-      data += chunk;
-    });
+    res.on('data', (chunk) => data += chunk);
     res.on('end', () => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
          console.log(`[Profiling] ${profileType} profile ${profileCounter} sent successfully!`);
@@ -54,50 +66,38 @@ function sendProfileData(buffer, profileType) {
 
 function startContinuousProfiling() {
   console.log('[Profiling] Initializing continuous CPU and Memory profiling...');
-
   const captureAndSend = async () => {
     profileCounter++;
     try {
       console.log(`[Profiling] Capturing CPU & Memory profiles ${profileCounter}...`);
       
-      // 2. Capture 10 seconds of CPU activity
       const cpuProfile = await pprof.time.profile({ durationMillis: 10000 });
       const cpuBuffer = await pprof.encode(cpuProfile);
       sendProfileData(cpuBuffer, 'cpu');
 
-      // 3. Capture Heap Memory profile
       const heapProfile = await pprof.heap.profile();
       const heapBuffer = await pprof.encode(heapProfile);
       sendProfileData(heapBuffer, 'memory');
-
     } catch (error) {
       console.error(`[Profiling] Error during profiling interval ${profileCounter}:`, error);
     }
   };
 
-  // Trigger the very first set immediately
   captureAndSend();
-  
-  // Run the continuous profiling loop
   setInterval(captureAndSend, PROFILING_INTERVAL_MS);
 }
 
 startContinuousProfiling();
-// End Continuous Profiling Setup
 
-
-process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://deployraai.onrender.com/api/observability/traces';
-process.env.OTEL_SERVICE_NAME = 'FeedBack';
-const { initExpressObservability, observabilityMiddleware  } = require('@swapnil454/tracepilot/express');
-initExpressObservability();
-
+// ==========================================
+// 3. Express App Setup
+// ==========================================
 const express = require('express');
 const sequelize = require('./config/database');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// ... (Rest of your Express setup remains exactly the same below this line)
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const storeRoutes = require('./routes/stores');
@@ -107,7 +107,9 @@ const dashboardRouter = require('./routes/dashboard');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// Apply the Request tracing middleware here!
 app.use(observabilityMiddleware());
+
 app.set('trust proxy', 1);
 app.use(express.json());
 
@@ -132,7 +134,6 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
 app.use(limiter);
 
 sequelize
@@ -157,6 +158,9 @@ app.get('/', (req, res) => {
   res.send('Rating App API is running');
 });
 
+// Apply the Error tracing middleware right before the generic error handler!
+app.use(errorObservabilityMiddleware());
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   if (res.headersSent) return next(err);
@@ -165,4 +169,4 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
+}); 
