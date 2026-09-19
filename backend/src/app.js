@@ -3,15 +3,18 @@ const pprof = require('@datadog/pprof');
 const https = require('https');
 const { URL } = require('url'); 
 
-const PROFILING_ENDPOINT = 'https://deployraai.onrender.com/api/observability/profiles/v1/profiles';
+// Bypassing main server proxy for lower latency directly to the ingestor
+const PROFILING_ENDPOINT = 'https://deployraai-56i8.onrender.com/v1/profiles';
 const PROJECT_ID = '6aaaeb61b44c3e52e9fba443';
 const SERVICE_NAME_FOR_PROFILE = 'FeedBack'; 
-const PROFILE_TYPE = 'cpu';
 const PROFILING_INTERVAL_MS = 60 * 1000; // Run every 60 seconds
 
 let profileCounter = 0; 
 
-function sendProfileData(buffer) {
+// 1. Enable heap profiler to track memory allocations
+pprof.heap.start(512 * 1024, 64);
+
+function sendProfileData(buffer, profileType) {
   const url = new URL(PROFILING_ENDPOINT);
   const options = {
     hostname: url.hostname,
@@ -21,7 +24,7 @@ function sendProfileData(buffer) {
     headers: {
       'x-project-id': PROJECT_ID,
       'x-service-name': SERVICE_NAME_FOR_PROFILE,
-      'x-profile-type': PROFILE_TYPE,
+      'x-profile-type': profileType,
       'Content-Type': 'application/octet-stream',
       'Content-Length': Buffer.byteLength(buffer),
     },
@@ -34,15 +37,15 @@ function sendProfileData(buffer) {
     });
     res.on('end', () => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
-         console.log(`[Profiling] Profile ${profileCounter} sent successfully!`);
+         console.log(`[Profiling] ${profileType} profile ${profileCounter} sent successfully!`);
       } else {
-        console.error(`[Profiling] Failed to send profile ${profileCounter} (Status: ${res.statusCode}): ${data}`);
+        console.error(`[Profiling] Failed to send ${profileType} profile ${profileCounter} (Status: ${res.statusCode}): ${data}`);
       }
     });
   });
 
   req.on('error', (e) => {
-    console.error(`[Profiling] Problem with profile request ${profileCounter}: ${e.message}`);
+    console.error(`[Profiling] Problem with ${profileType} profile request ${profileCounter}: ${e.message}`);
   });
 
   req.write(buffer);
@@ -50,26 +53,33 @@ function sendProfileData(buffer) {
 }
 
 function startContinuousProfiling() {
-  console.log('[Profiling] Initializing continuous CPU profiling...');
+  console.log('[Profiling] Initializing continuous CPU and Memory profiling...');
 
-  // Run the profiling loop
-  setInterval(async () => {
+  const captureAndSend = async () => {
     profileCounter++;
     try {
-      console.log(`[Profiling] Capturing CPU profile ${profileCounter}...`);
+      console.log(`[Profiling] Capturing CPU & Memory profiles ${profileCounter}...`);
       
-      // Capture 10 seconds of CPU activity
-      const profile = await pprof.time.profile({ durationMillis: 10000 });
-      
-      // Encode to standard pprof format
-      const buffer = await pprof.encode(profile);
-      
-      // Send to the ingestor
-      sendProfileData(buffer);
+      // 2. Capture 10 seconds of CPU activity
+      const cpuProfile = await pprof.time.profile({ durationMillis: 10000 });
+      const cpuBuffer = await pprof.encode(cpuProfile);
+      sendProfileData(cpuBuffer, 'cpu');
+
+      // 3. Capture Heap Memory profile
+      const heapProfile = await pprof.heap.profile();
+      const heapBuffer = await pprof.encode(heapProfile);
+      sendProfileData(heapBuffer, 'memory');
+
     } catch (error) {
       console.error(`[Profiling] Error during profiling interval ${profileCounter}:`, error);
     }
-  }, PROFILING_INTERVAL_MS);
+  };
+
+  // Trigger the very first set immediately
+  captureAndSend();
+  
+  // Run the continuous profiling loop
+  setInterval(captureAndSend, PROFILING_INTERVAL_MS);
 }
 
 startContinuousProfiling();
@@ -86,6 +96,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// ... (Rest of your Express setup remains exactly the same below this line)
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const storeRoutes = require('./routes/stores');
