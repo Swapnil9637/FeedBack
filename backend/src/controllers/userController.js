@@ -1,6 +1,7 @@
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
+const { track } = require('@swapnil454/tracepilot');
 
 exports.createUser = async (req, res) => {
   try {
@@ -18,6 +19,10 @@ exports.createUser = async (req, res) => {
 
     const userResponse = user.toJSON();
     delete userResponse.password;
+
+    track('user_signup', {
+      role: user.role // This allows you to filter dashboards by 'admin' vs 'user' signups
+    });
 
     res.status(201).json({ message: 'User created', user: userResponse });
   } catch (err) {
