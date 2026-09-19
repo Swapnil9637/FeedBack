@@ -90,6 +90,7 @@ process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOIN
 process.env.OTEL_SERVICE_NAME = 'FeedBack';
 const { initExpressObservability } = require('@swapnil454/tracepilot/express');
 initExpressObservability();
+app.use(observabilityMiddleware());
 
 const express = require('express');
 const sequelize = require('./config/database');
