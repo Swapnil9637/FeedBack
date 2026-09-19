@@ -3,8 +3,8 @@ const pprof = require('@datadog/pprof');
 const https = require('https');
 const { URL } = require('url'); 
 
-// Bypassing main server proxy for lower latency directly to the ingestor
-const PROFILING_ENDPOINT = 'https://deployraai-56i8.onrender.com/v1/profiles';
+// Send to the Main Server Proxy, which will attach your auth tokens automatically
+const PROFILING_ENDPOINT = 'https://deployraai.onrender.com/api/observability/profiles/v1/profiles';
 const PROJECT_ID = '6aaaeb61b44c3e52e9fba443';
 const SERVICE_NAME_FOR_PROFILE = 'FeedBack'; 
 const PROFILING_INTERVAL_MS = 60 * 1000; // Run every 60 seconds
@@ -84,6 +84,7 @@ function startContinuousProfiling() {
 
 startContinuousProfiling();
 // End Continuous Profiling Setup
+
 
 process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://deployraai.onrender.com/api/observability/traces';
 process.env.OTEL_SERVICE_NAME = 'FeedBack';
