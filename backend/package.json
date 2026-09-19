@@ -23,7 +23,7 @@
     "pg-hstore": "^2.3.4",
     "resend": "^2.0.0",
     "sequelize": "^6.37.8",
-    "@swapnil454/tracepilot": "^0.2.13",
+    "@swapnil454/tracepilot": "^0.2.15",
     "@datadog/pprof": "^3.2.0",
     "axios": "^1.7.2"
   }
