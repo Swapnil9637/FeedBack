@@ -88,9 +88,8 @@ startContinuousProfiling();
 
 process.env.OTEL_EXPORTER_OTLP_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://deployraai.onrender.com/api/observability/traces';
 process.env.OTEL_SERVICE_NAME = 'FeedBack';
-const { initExpressObservability } = require('@swapnil454/tracepilot/express');
+const { initExpressObservability, observabilityMiddleware  } = require('@swapnil454/tracepilot/express');
 initExpressObservability();
-app.use(observabilityMiddleware());
 
 const express = require('express');
 const sequelize = require('./config/database');
@@ -108,6 +107,7 @@ const dashboardRouter = require('./routes/dashboard');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+app.use(observabilityMiddleware());
 app.set('trust proxy', 1);
 app.use(express.json());
 
